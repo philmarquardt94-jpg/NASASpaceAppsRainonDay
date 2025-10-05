@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Trip Planner • Map + Weather Constraints</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Inline favicon -->
+  <link rel="icon" type="image/svg+xml"
+        href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%230a7c2e"/><text x="50%" y="58%" font-size="44" text-anchor="middle" fill="white">🗺️</text></svg>'>
+
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <style>
+    :root {
+      --fg:#0c1116; --muted:#667085; --card:#f6f8fa; --line:#e5e7eb;
+      --ok:#0a7c2e; --bad:#b00020; --brand:#1a73e8;
+      --ok-bg:#d1fae5; --ok-bd:#bbf7d0; --bad-bg:#fee2e2; --bad-bd:#fecaca;
+    }
+    html, body { height: 100%; margin: 0; font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: var(--fg); }
+    #layout { display: grid; grid-template-columns: 1fr 420px; height: 100%; min-height: 100vh; }
+    #map { width: 100%; height: 100%; background: #eef; }
+    #right { border-left: 1px solid var(--line); display: grid; grid-template-rows: auto auto auto 1fr; background:#fff; }
+    #banner { background: #eef4ff; border-bottom:1px solid #d7e3ff; padding: 10px 14px; font-weight: 600; }
+    #errorPanel { display:none; padding:10px 14px; background:#ffe8e8; border-bottom:1px solid #f2b8b5; color:#7a1b1b; }
+    #placeCard, #planCard, #tripsCard { padding: 16px 18px; }
+    #placeCard { background: var(--card); border-bottom:1px solid var(--line); }
+    h2 { margin: 6px 0 10px; font-size: 1.1rem; }
+    h3 { margin: 16px 0 10px; font-size: 1rem; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .kv { margin: 8px 0; }
+    .small { color: var(--muted); font-size: 0.92rem; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    label { font-size: 0.95rem; }
+    input[type="text"], input[type="number"], input[type="datetime-local"], select {
+      padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background:#fff;
+    }
+    input[type="checkbox"] { transform: scale(1.1); margin-right:6px; }
+    button {
+      padding: 9px 13px; border: 1px solid #bcd; background: #eaf2ff; border-radius: 12px;
+      cursor: pointer; font-weight: 600;
+    }
+    button.secondary { background: #f3f5f7; border-color: var(--line); }
+    .hr { height: 1px; background: var(--line); margin: 12px 0; }
+    .pill { display:inline-block; padding: 3px 9px; border-radius:999px; border:1px solid var(--line); background:#fff; font-size:0.86rem; }
+    .good { color: var(--ok); }
+    .bad { color: var(--bad); }
+    .list { border: 1px solid var(--line); border-radius: 12px; padding: 10px; max-height: 220px; overflow: auto; }
+    .trip { display:flex; justify-content: space-between; align-items: center; padding: 8px 4px; border-bottom:1px dashed #eee; }
+    .trip:last-child { border-bottom: none; }
+
+    /* Timeline */
+    .timeline { display:flex; gap:3px; flex-wrap:wrap; margin-top:8px; }
+    .tick { width:14px; height:14px; border-radius:3px; background:var(--ok-bg); border:1px solid var(--ok-bd); }
+    .tick.bad { background:var(--bad-bg); border-color:var(--bad-bd); }
+    .tl-legend { display:flex; align-items:center; gap:8px; margin-top:6px; }
+    .legend-swatch { width:12px; height:12px; border-radius:3px; border:1px solid var(--line); }
+    .swatch-ok { background:var(--ok-bg); border-color:var(--ok-bd); }
+    .swatch-bad { background:var(--bad-bg); border-color:var(--bad-bd); }
+
+    /* NEW: Per-condition rows (green/red boxes) */
+    #condPanel { margin-top: 12px; }
+    .cond-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px dashed #eee; }
+    .cond-row:last-child { border-bottom:none; }
+    .cond-box { width:14px; height:14px; border-radius:3px; border:1px solid var(--ok-bd); background:var(--ok-bg); }
+    .cond-box.bad { background:var(--bad-bg); border-color:var(--bad-bd); }
+    .cond-name { font-weight: 600; }
+    .cond-range { color: var(--muted); font-size: 0.9rem; }
+
+    /* NEW: Suggestions panel */
+    #suggestPanel { margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; padding: 10px; background:#fff; }
+    #suggestPanel h3 { margin-top: 0; }
+    .suggest-item { margin:6px 0; }
+  </style>
+</head>
+<body>
+  <div id="layout">
+    <div id="map"></div>
+
+    <div id="right">
+      <div id="banner">App loaded. Map is interactive. Click a location to set your trip area.</div>
+      <div id="errorPanel"></div>
+
+      <!-- Selected place -->
+      <section id="placeCard">
+        <h2>Selected Place</h2>
+        <div id="placeInfo" class="small">Click on the map to choose a location.</div>
+      </section>
+
+      <!-- Plan a Trip -->
+      <section id="planCard">
+        <h2>Plan a Trip</h2>
+        <div class="kv"><b>Name:</b> <input id="tripName" type="text" placeholder="My Trip" style="width: 260px"></div>
+
+        <div class="kv"><b>Time Window</b> <span id="tzBadge" class="pill small">Timezone: —</span></div>
+        <div class="row">
+          <label>Start <input id="startLocal" type="datetime-local"></label>
+          <label>End <input id="endLocal" type="datetime-local"></label>
+        </div>
+        <div class="small">Times are interpreted in the <span class="mono" id="tzText">—</span> timezone for this location.</div>
+
+        <div class="hr"></div>
+
+        <h3>Conditions (toggle what to care about)</h3>
+
+        <div class="kv">
+          <label><input id="chkPProb" type="checkbox" checked> Precip. probability ≤
+            <input id="pprobMax" type="number" value="40" min="0" max="100" style="width:80px"> %</label>
+        </div>
+
+        <div class="kv">
+          <label><input id="chkPAmt" type="checkbox"> Precip. amount ≤
+            <input id="pamtMax" type="number" value="0.10" step="0.01" style="width:90px">
+            <select id="pamtUnit"><option>in</option><option>mm</option></select>
+          </label>
+        </div>
+
+        <div class="kv">
+          <label><input id="chkTemp" type="checkbox" checked> Temperature between
+            <input id="tMin" type="number" value="55" style="width:90px"> and
+            <input id="tMax" type="number" value="85" style="width:90px">
+            <select id="tUnit"><option>F</option><option>C</option></select>
+          </label>
+        </div>
+
+        <div class="kv">
+          <label><input id="chkHum" type="checkbox"> Humidity between
+            <input id="hMin" type="number" style="width:90px" placeholder="min"> and
+            <input id="hMax" type="number" style="width:90px" placeholder="max"> %
+          </label>
+        </div>
+
+        <div class="kv">
+          <label><input id="chkWind" type="checkbox" checked> Wind speed
+            ≤ <input id="wMax" type="number" value="20" style="width:90px">
+            (or leave blank) ≥ <input id="wMin" type="number" style="width:90px">
+            <select id="wUnit"><option>mph</option><option>m/s</option></select>
+          </label>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <button id="runBtn">Run Trip Check</button>
+        </div>
+
+        <!-- Existing summary/timeline that current JS writes into -->
+        <div id="planResult" style="margin-top:12px"></div>
+
+        <!-- NEW: per-condition boxes (one row per condition with min/max shown) -->
+        <div id="condPanel" style="display:none;">
+          <h3>Condition Status</h3>
+          <div id="condRows">
+            <!-- JS will inject rows like:
+              <div class="cond-row">
+                <div class="cond-box"></div>
+                <div class="cond-name">Wind Speed</div>
+                <div class="cond-range">(min: 5 mph, max: 20 mph)</div>
+              </div>
+            -->
+          </div>
+        </div>
+
+        <!-- NEW: suggestions & wider “unideal” spans -->
+        <div id="suggestPanel" style="display:none;">
+          <h3>Timing Suggestions</h3>
+          <div id="unidealSpans" class="small">
+            <!-- JS will list unideal continuous spans e.g., 9:00 AM–3:00 PM -->
+          </div>
+          <div class="hr" style="margin:10px 0;"></div>
+          <div id="altWindows">
+            <!-- JS will list suggested alternative windows e.g., 7–9 AM, 3–5 PM -->
+          </div>
+        </div>
+
+        <!-- Timeline legend (kept for visual context) -->
+        <div class="tl-legend small" style="margin-top:10px">
+          <span class="legend-swatch swatch-ok"></span> OK
+          <span class="legend-swatch swatch-bad" style="margin-left:10px;"></span> No-Go
+        </div>
+      </section>
+
+      <!-- My Trips -->
+      <section id="tripsCard">
+        <h2>My Trips</h2>
+        <div id="tripsList" class="list small">No trips yet.</div>
+        <div class="row" style="margin-top:10px">
+          <button class="secondary" id="refreshTrips">Refresh</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
