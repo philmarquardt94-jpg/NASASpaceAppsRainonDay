@@ -97,11 +97,6 @@
     /* top summary colors */
     .good b { color:var(--good); }
     .bad b  { color:var(--bad); }
-
-    /* --- HIDE NASA Uncertainty panel & "Chance to Flip" column --- */
-    #probPanel { display: none !important; }
-    #modal thead th:nth-child(5),
-    #modal tbody td:nth-child(5) { display: none; }
   </style>
 </head>
 <body>
@@ -220,7 +215,6 @@
         <div id="altWindows" class="small" style="margin-top:10px;"></div>
       </div>
 
-      <!-- Hidden via CSS -->
       <div id="probPanel" class="panel" style="display:none;">
         <h2>Uncertainty (NASA)</h2>
         <div id="probRows"></div>
@@ -262,7 +256,6 @@
               <th style="width:110px;">Value</th>
               <th style="width:70px;">Unit</th>
               <th style="width:90px;">Ideal</th>
-              <!-- Hidden via CSS -->
               <th style="width:130px;">Chance to Flip</th>
               <th style="width:110px;">Overall OK</th>
               <th>Reasons</th>
