@@ -13,7 +13,7 @@ python app.py
 
 #"nasa-power" — historical/near-real-time only. Works for past windows.
 
-#"combined" — Open-Meteo for the values + POWER for uncertainty (when available).
+#"combined" — Open-Meteo for the values + POWER for uncertainty (when available for more closer data ~1.5 days, afterwards is unreliable).
 
 #If your window is in the future, combined mode still evaluates with Open-Meteo, and tries to fetch POWER for today or earlier and uses that to estimate the flip probability.
 
