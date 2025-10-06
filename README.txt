@@ -18,3 +18,5 @@ python app.py
 #If your window is in the future, combined mode still evaluates with Open-Meteo, and tries to fetch POWER for today or earlier and uses that to estimate the flip probability.
 
 #If POWER isn’t available for the range, it gracefully falls back to the Open-Meteo “extended-window” heuristic for uncertainty (so you always get the yellow/green/red %).
+
+Give fact it is none for chance to flip on rain.
